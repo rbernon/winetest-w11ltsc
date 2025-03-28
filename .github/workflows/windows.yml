@@ -1,0 +1,56 @@
+name: windows
+on:
+  workflow_dispatch:
+    inputs:
+      install:
+        type: string
+        default: "11"
+      version:
+        type: string
+        default: "w11pro64"
+      run_id:
+        type: string
+        default: "0"
+      event:
+        type: string
+        default: "push"
+
+jobs:
+  build-windows-private:
+    if: ${{ startsWith(inputs.install, 'rbernon/private:') }}
+    uses: ./.github/workflows/build-windows.yml
+    with:
+      image: ${{ inputs.install }}
+
+  build-windows:
+    if: ${{ !startsWith(inputs.install, 'rbernon/private:') }}
+    uses: ./.github/workflows/build-windows.yml
+    with:
+      version: ${{ inputs.install }}
+
+  tests-windows-private:
+    if: ${{ startsWith(inputs.install, 'rbernon/private:') }}
+    uses: ./.github/workflows/tests-windows.yml
+    with:
+      image: ${{ inputs.install }}
+      version: ${{ inputs.version }}
+      run_id: ${{ inputs.run_id }}
+      event: ${{ inputs.event }}
+
+  tests-windows:
+    if: ${{ !startsWith(inputs.install, 'rbernon/private:') }}
+    uses: ./.github/workflows/tests-windows.yml
+    with:
+      version: ${{ inputs.version }}
+      run_id: ${{ inputs.run_id }}
+      event: ${{ inputs.event }}
+
+  clean:
+    if: always()
+    needs: [tests-windows, tests-windows-private]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cleanup
+        uses: rbernon/workflow-cleanup@main
+        with:
+          workflow: all

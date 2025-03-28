@@ -1,0 +1,49 @@
+name: build-windows
+on:
+  workflow_call:
+    inputs:
+      image:
+        type: string
+        default: "rbernon/winetest-windows:stable"
+      version:
+        type: string
+        default: ""
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+
+    container:
+      image: ${{ inputs.image }}
+      options: --user root --device=/dev/kvm --device=/dev/net/tun --cap-add NET_ADMIN -p 8006:8006
+
+    steps:
+      - name: Check
+        id: cache-check
+        uses: actions/cache/restore@v4
+        with:
+          lookup-only: true
+          path: /storage
+          key:
+            storage-${{ github.run_id }}
+          restore-keys: |
+            storage
+
+      - name: Cache
+        if: steps.cache-check.outputs.cache-hit == ''
+        uses: actions/cache@v4
+        with:
+          path: /storage
+          key:
+            storage-${{ github.run_id }}
+          restore-keys: |
+            storage
+
+      - name: Install
+        if: steps.cache-check.outputs.cache-hit == ''
+        run: |
+          [ -n "${{ inputs.version }}" ] && export VERSION=${{ inputs.version }} ||:
+          mkisofs -J -o /drivers.iso /data
+          chmod +x /run/entry.sh
+          /usr/bin/tini -s -- /run/entry.sh
+          rm -f /drivers.iso
